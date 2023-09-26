@@ -18,6 +18,7 @@ misc = struct();
 
 %%
 c_say('Classifying ICs with ICLabel');
+% EEG.etc.ic_classification=rmfield(EEG.etc.ic_classification,'ICLabel')
 EEG = iclabel(EEG);
 c_sayDone();
 

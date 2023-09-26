@@ -19,6 +19,7 @@ if length(size(EEG.data))>2
 	didReshape = true;
 end
 
+EEG.data=double(EEG.data);
 if isempty(s.tempDir), s.tempDir = tempname; end;
 if ~exist(s.tempDir,'dir') mkdir(s.tempDir); end;
 
@@ -49,7 +50,9 @@ switch(s.method)
 			fastICAOnPath = true;
 		end
 		c_say('Running FastICA');
-		EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh');
+        %EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh','stabilization','on');
+   		%EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh');
+        EEG = pop_runica(EEG, 'icatype', 'picard','m',12 , 'maxiter',700);
 		c_sayDone();
 		
 	case 'runica'

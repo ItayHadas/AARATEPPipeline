@@ -63,12 +63,12 @@ p.addParameter('pulseEvent', '', @ischar);
 p.addParameter('outputDir', '', @ischar);
 p.addParameter('outputFilePrefix', 'PreprocessedResults', @ischar);
 p.addParameter('epochTimespan', [], @c_isSpan);
-p.addParameter('artifactTimespan', [-0.002, 0.012], @c_isSpan);
+p.addParameter('artifactTimespan', [-0.003, 0.015], @c_isSpan);
 p.addParameter('baselineTimespan', [-0.5 -0.01], @c_isSpan);
 p.addParameter('downsampleTo', 1000, @isscalar);
-p.addParameter('bandpassFreqSpan', [1 200], @c_isSpan);
+p.addParameter('bandpassFreqSpan', [1 120], @c_isSpan);
 p.addParameter('badChannelDetectionMethod', 'TESA_DDWiener_PerTrial', @ischar);
-p.addParameter('badChannelThreshold', 10, @isscalar);
+p.addParameter('badChannelThreshold', 18, @isscalar);
 p.addParameter('initialEyeComponentThreshold', 0.9, @isscalar);
 p.addParameter('SOUNDlambda', 10^-1.5, @isscalar);
 p.addParameter('leadFieldPath', '', @(x) ischar(x) || ismatrix(x));  % used by SOUND
@@ -155,10 +155,20 @@ c_sayDone();
 %         intermediateLabels{end+1} = 'Artifact interpolated';
 %     end
 
+%% detrend
+c_say('detrend instead of highpass');
+EEG.data=double(EEG.data);
+    for elecc=1:size(EEG.data,1)
+        for epoo=1:size(EEG.data,3)
+            EEG.data(elecc,:,epoo)=detrend(double(EEG.data(elecc,:,epoo)),1);
+        end
+    end
+EEG = eeg_checkset( EEG );   
 %% downsample
 if EEG.srate > s.downsampleTo
 	c_say('Downsampling to %.1f Hz', s.downsampleTo);
-	EEG = pop_resample(EEG, s.downsampleTo);
+	%EEG = pop_resample(EEG, s.downsampleTo);
+    EEG=resample_NOfilt(EEG, s.downsampleTo);
 	c_sayDone();
 
 %         if s.doDebug
@@ -179,20 +189,6 @@ if s.doDebug
 	intermediateLabels{end+1} = 'Baseline subtracted';
 end
 
-%% High-pass filtering
-c_say('Highpass filtering')
-timeToExtend = 0.5;
-maxTimeToExtend = min(abs(s.epochTimespan - s.artifactTimespan*3));
-timeToExtend = min(timeToExtend, maxTimeToExtend);
-EEG = c_TMSEEG_applyModifiedBandpassFilter(EEG,...
-	'piecewiseTimeToExtend', timeToExtend,...
-	'lowCutoff', s.bandpassFreqSpan(1),...
-	'artifactTimespan', s.artifactTimespan*3);
-c_sayDone();
-if s.doDebug
-	intermediateEEGs{end+1} = EEG;
-	intermediateLabels{end+1} = 'High-pass filtered';
-end
 
 %% basic channel rejection
 doReplaceBadChanImmediately = true;
@@ -354,6 +350,20 @@ if s.doDebug
 	intermediateLabels{end+1} = 'Artifact interpolated';
 end
 
+%% High-pass filtering -canceled
+c_say('Highpass filtering')
+timeToExtend = 0.5;
+maxTimeToExtend = min(abs(s.epochTimespan - s.artifactTimespan*3));
+timeToExtend = min(timeToExtend, maxTimeToExtend);
+EEG = c_TMSEEG_applyModifiedBandpassFilter(EEG,...
+	'piecewiseTimeToExtend', timeToExtend,...
+	'lowCutoff', s.bandpassFreqSpan(1),...
+	'artifactTimespan', s.artifactTimespan*3);
+c_sayDone();
+if s.doDebug
+	intermediateEEGs{end+1} = EEG;
+	intermediateLabels{end+1} = 'High-pass filtered';
+end
 %% notch
 c_say('Notch filtering');
 if false
@@ -365,10 +375,21 @@ c_sayDone();
 
 %% ICA
 c_say('Running ICA');
+% s.ICAType='fastica';
+% EEGtemp2=EEG;    EEG=EEGtemp2
+% EEG = eeg_checkset( EEG );
+% EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh','stabilization','on');
+% EEG = pop_runica(EEG, 'icatype', 'picard','m',12 , 'maxiter',700); %,'mode','standard';
+%  EEG = pop_viewprops( EEG, 0, [1:35], {'freqrange', [2 60]}, {}, 1, '' )
+% EEG = pop_iclabel(EEG, 'beta')
+    
 EEG = c_EEG_ICA(EEG, 'method', s.ICAType);
+%EEG = iclabel(EEG,'beta');
+% EEG.etc.ic_classification.ICLabel.classifications
 c_sayDone();
 
 c_say('Labeling ICs using ICLabel');
+%
 [EEG, misc] = c_TMSEEG_runICLabel(EEG,...
     'doPlot', true,...
     'doRejection', false);
