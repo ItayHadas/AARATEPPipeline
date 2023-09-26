@@ -27,13 +27,19 @@ switch(s.method)
 	case 'amica'
 		if isempty(amicaOnPath) || ~amicaOnPath
 			mfilepath=fileparts(which(mfilename));
-			addpath(genpath(fullfile(mfilepath,'../ThirdParty/amica')));
+			addpath(genpath(fullfile(mfilepath,'/ThirdParty/amica')));
 			amicaOnPath = true;
+            % addpath(genpath('D:\GITs\AARATEPPipeline\Common\ThirdParty\amica'));
 		end
 		c_say('Running amica');
-		[weights, sphere, mods] = runamica15(EEG.data,...
-			'outdir',[s.tempDir filesep 'amicaouttmp' filesep],...
+		% [weights, sphere, mods] = runamica15(EEG.data,...
+		% 	'outdir',[s.tempDir filesep 'amicaouttmp' filesep],...
+		% 	'max_threads',feature('numCores'));
+
+        [weights, sphere, mods] = runamica15(EEG.data,...
+			'outdir','d:\TEMP',...
 			'max_threads',feature('numCores'));
+
 		c_sayDone();
 		
 		EEG.icaweights = weights;

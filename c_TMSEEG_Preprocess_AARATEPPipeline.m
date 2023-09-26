@@ -63,12 +63,12 @@ p.addParameter('pulseEvent', '', @ischar);
 p.addParameter('outputDir', '', @ischar);
 p.addParameter('outputFilePrefix', 'PreprocessedResults', @ischar);
 p.addParameter('epochTimespan', [], @c_isSpan);
-p.addParameter('artifactTimespan', [-0.003, 0.015], @c_isSpan);
+p.addParameter('artifactTimespan', [-0.003, 0.20], @c_isSpan);
 p.addParameter('baselineTimespan', [-0.5 -0.01], @c_isSpan);
 p.addParameter('downsampleTo', 1000, @isscalar);
-p.addParameter('bandpassFreqSpan', [1 120], @c_isSpan);
+p.addParameter('bandpassFreqSpan', [1 200], @c_isSpan);
 p.addParameter('badChannelDetectionMethod', 'TESA_DDWiener_PerTrial', @ischar);
-p.addParameter('badChannelThreshold', 18, @isscalar);
+p.addParameter('badChannelThreshold', 16, @isscalar);
 p.addParameter('initialEyeComponentThreshold', 0.9, @isscalar);
 p.addParameter('SOUNDlambda', 10^-1.5, @isscalar);
 p.addParameter('leadFieldPath', '', @(x) ischar(x) || ismatrix(x));  % used by SOUND
