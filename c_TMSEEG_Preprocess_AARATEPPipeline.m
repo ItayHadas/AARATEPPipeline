@@ -63,12 +63,12 @@ p.addParameter('pulseEvent', '', @ischar);
 p.addParameter('outputDir', '', @ischar);
 p.addParameter('outputFilePrefix', 'PreprocessedResults', @ischar);
 p.addParameter('epochTimespan', [], @c_isSpan);
-p.addParameter('artifactTimespan', [-0.002, 0.12], @c_isSpan);
+p.addParameter('artifactTimespan', [-0.002, 0.012], @c_isSpan);
 p.addParameter('baselineTimespan', [-0.5 -0.01], @c_isSpan);
 p.addParameter('downsampleTo', 1000, @isscalar);
 p.addParameter('bandpassFreqSpan', [1 200], @c_isSpan);
 p.addParameter('badChannelDetectionMethod', 'TESA_DDWiener_PerTrial', @ischar);
-p.addParameter('badChannelThreshold', 16, @isscalar);
+p.addParameter('badChannelThreshold', 12, @isscalar);
 p.addParameter('initialEyeComponentThreshold', 0.9, @isscalar);
 p.addParameter('SOUNDlambda', 10^-1.5, @isscalar);
 p.addParameter('leadFieldPath', '', @(x) ischar(x) || ismatrix(x));  % used by SOUND
@@ -164,6 +164,8 @@ EEG.data=double(EEG.data);
         end
     end
 EEG = eeg_checkset( EEG );   
+
+
 %% downsample
 if EEG.srate > s.downsampleTo
 	c_say('Downsampling to %.1f Hz', s.downsampleTo);
@@ -176,6 +178,8 @@ if EEG.srate > s.downsampleTo
 %             intermediateLabels{end+1} = 'Downsampled';
 %         end
 end
+
+
 
 %% baseline correct
 baselineTimespan = s.baselineTimespan;
@@ -234,7 +238,7 @@ if s.initialEyeComponentThreshold < 1
 	c_sayDone();
 	
 	c_say('Running early ICA for eye artifacts');
-	EEG = c_EEG_ICA(EEG, 'method', 'fastica');
+	EEG = c_EEG_ICA(EEG, 'method', 'picard');
 	c_sayDone();
 	
 	c_say('Labeling ICs using ICLabel');
@@ -290,10 +294,10 @@ end
 
 if true
 	% save EEG prior to SOUND for some analyses
-	outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preSOUND.mat']);
-	c_say('Prior to ICA rejection, saving results to %s', outputPath);
-	save(outputPath, 'EEG', 'md');
-	c_sayDone();
+	%outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preSOUND.mat']);
+	%c_say('Prior to ICA rejection, saving results to %s', outputPath);
+	%save(outputPath, 'EEG', 'md');
+	%c_sayDone();
 end
 
 %% SOUND
@@ -375,17 +379,9 @@ c_sayDone();
 
 %% ICA
 c_say('Running ICA');
-% s.ICAType='fastica';
-% EEGtemp2=EEG;    EEG=EEGtemp2
-% EEG = eeg_checkset( EEG );
-% EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh','stabilization','on');
-% EEG = pop_runica(EEG, 'icatype', 'picard','m',12 , 'maxiter',700); %,'mode','standard';
-%  EEG = pop_viewprops( EEG, 0, [1:35], {'freqrange', [2 60]}, {}, 1, '' )
-% EEG = pop_iclabel(EEG, 'beta')
     
 EEG = c_EEG_ICA(EEG, 'method', s.ICAType);
-%EEG = iclabel(EEG,'beta');
-% EEG.etc.ic_classification.ICLabel.classifications
+
 c_sayDone();
 
 c_say('Labeling ICs using ICLabel');

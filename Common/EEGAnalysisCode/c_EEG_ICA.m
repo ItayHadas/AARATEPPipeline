@@ -57,8 +57,15 @@ switch(s.method)
 		end
 		c_say('Running FastICA');
         %EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh','stabilization','on');
-   		%EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh');
-        EEG = pop_runica(EEG, 'icatype', 'picard','m',12 , 'maxiter',700);
+   		EEG = pop_runica(EEG,'icatype','fastica','approach','symm','g','tanh');
+        c_sayDone();
+
+    case 'picard'
+					
+		addpath('D:\GITs\TMS-EEG\picard');
+		assert(exist('picard.m','file')>0);
+		c_say('Running Picard ICA');
+        EEG = pop_runica(EEG, 'icatype', 'picard','m',12 , 'maxiter',1000);
 		c_sayDone();
 		
 	case 'runica'
