@@ -311,13 +311,13 @@ if s.doDebug
 	intermediateLabels{end+1} = 'After SOUND';
 end
 
-if true
-    % save EEG prior to component rejection to allow different component rejection choices later
-    outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preDecayRemoval.mat']);
-    c_say('Prior to ICA rejection, saving results to %s', outputPath);
-    c_save(outputPath, 'EEG', 'md');
-    c_sayDone();
-end
+% if true
+%     % save EEG prior to component rejection to allow different component rejection choices later
+%     outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preDecayRemoval.mat']);
+%     c_say('Prior to ICA rejection, saving results to %s', outputPath);
+%     c_save(outputPath, 'EEG', 'md');
+%     c_sayDone();
+% end
 
 %% decay fitting and removal
 [EEG, misc] = c_TMSEEG_fitAndRemoveDecayArtifact(EEG,...
@@ -452,13 +452,13 @@ end
 md.ICA_numComp = length(misc.rejectComponents);
 md.ICA_numRejComp = sum(misc.rejectComponents);
 
-if true
-    % save EEG prior to component rejection to allow different component rejection choices later
-    outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preICARejection.mat']);
-    c_say('Prior to ICA rejection, saving results to %s', outputPath);
-    c_save(outputPath, 'EEG', 'md');
-    c_sayDone();
-end
+% if true
+%     % save EEG prior to component rejection to allow different component rejection choices later
+%     outputPath = fullfile(s.outputDir, [s.outputFilePrefix '_preICARejection.mat']);
+%     c_say('Prior to ICA rejection, saving results to %s', outputPath);
+%     c_save(outputPath, 'EEG', 'md');
+%     c_sayDone();
+% end
 
 if true
     figure(misc.hf);
@@ -510,10 +510,10 @@ if s.doDebug
 end
 
 %% save output
-outputPath = fullfile(s.outputDir, [s.outputFilePrefix '.mat']);
-c_say('Saving results to %s', outputPath);
-c_save(outputPath, 'EEG', 'md');
-c_sayDone();
+% outputPath = fullfile(s.outputDir, [s.outputFilePrefix '.mat']);
+% c_say('Saving results to %s', outputPath);
+% c_save(outputPath, 'EEG', 'md');
+% c_sayDone();
 
 %% plot
 if s.doPlotFinalTimtopo
