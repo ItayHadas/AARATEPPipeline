@@ -63,7 +63,7 @@ p.addParameter('pulseEvent', '', @ischar);
 p.addParameter('outputDir', '', @ischar);
 p.addParameter('outputFilePrefix', 'PreprocessedResults', @ischar);
 p.addParameter('epochTimespan', [], @c_isSpan);
-p.addParameter('artifactTimespan', [-0.003, 0.20], @c_isSpan);
+p.addParameter('artifactTimespan', [-0.002, 0.12], @c_isSpan);
 p.addParameter('baselineTimespan', [-0.5 -0.01], @c_isSpan);
 p.addParameter('downsampleTo', 1000, @isscalar);
 p.addParameter('bandpassFreqSpan', [1 200], @c_isSpan);
@@ -108,19 +108,19 @@ EEG = c_TMSEEG_handleBurstEvents(EEG,...
 	'burstMaxIPI', max(abs(s.epochTimespan)));
 
 %% make output directory
-assert(~isempty(s.outputDir),'Output directory must be specified');
-
-if c_exist(s.outputDir,'dir')
-	% if outputDir already exists, assume it has old results that we should
-	%  move somewhere else rather than deleting / ovewriting
-	listing = dir([s.outputDir '_old*']);
-	existingDirs = arrayfun(@(listItem) fullfile(listItem.folder, listItem.name), listing, 'UniformOutput',false);
-	movePrevOutputTo = c_str_makeUnique(existingDirs, [s.outputDir '_old']);
-	movefile(s.outputDir, movePrevOutputTo);
-	pause(1); % give time for move to process before making dir again below
-	c_saySingle('Moved previous output to %s',...
-		c_path_convert(movePrevOutputTo, 'makeRelativeTo', fileparts(s.outputDir)));
-end
+% assert(~isempty(s.outputDir),'Output directory must be specified');
+% 
+% if c_exist(s.outputDir,'dir')
+% 	% if outputDir already exists, assume it has old results that we should
+% 	%  move somewhere else rather than deleting / ovewriting
+% 	listing = dir([s.outputDir '_old*']);
+% 	existingDirs = arrayfun(@(listItem) fullfile(listItem.folder, listItem.name), listing, 'UniformOutput',false);
+% 	movePrevOutputTo = c_str_makeUnique(existingDirs, [s.outputDir '_old']);
+% 	movefile(s.outputDir, movePrevOutputTo);
+% 	pause(1); % give time for move to process before making dir again below
+% 	c_saySingle('Moved previous output to %s',...
+% 		c_path_convert(movePrevOutputTo, 'makeRelativeTo', fileparts(s.outputDir)));
+% end
 
 if ~c_exist(s.outputDir,'dir')
 	c_saySingle('Making output directory at %s', s.outputDir);
