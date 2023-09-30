@@ -438,7 +438,7 @@ if sum(~misc.rejectComponents) < 4
 			warning('%s', msg);
 		case 'pause'
 			c_say('%s. Pausing', msg);
-			%keyboard
+			keyboard
 			c_sayDone();
 		otherwise
 			error('Not implemented');
