@@ -63,19 +63,17 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	p.addParameter('outputDir', '', @ischar);
 	p.addParameter('outputFilePrefix', 'PreprocessedResults', @ischar);
 	p.addParameter('epochTimespan', [], @c_isSpan);
-	p.addParameter('artifactTimespan', [-0.002, 0.020], @c_isSpan);
-	p.addParameter('baselineTimespan', [-0.5 -0.02], @c_isSpan);
+	p.addParameter('artifactTimespan', [-0.002, 0.012], @c_isSpan);
+	p.addParameter('baselineTimespan', [-0.5 -0.01], @c_isSpan);
 	p.addParameter('downsampleTo', 1000, @isscalar);
 	p.addParameter('bandpassFreqSpan', [1 200], @c_isSpan);
 	p.addParameter('badChannelDetectionMethod', 'TESA_DDWiener_PerTrial', @ischar);
-	p.addParameter('badChannelThreshold', 8, @isscalar);
-    p.addParameter('IMPChannels', {'f5','f3','fc3','fc5','fp1','fp2','fpz'}, @(x) iscellstr(x) || isnumeric(x));
-	p.addParameter('notch_freq', [58 62], @c_isSpan);
-    p.addParameter('initialEyeComponentThreshold', 0.9, @isscalar);
+	p.addParameter('badChannelThreshold', 10, @isscalar);
+	p.addParameter('initialEyeComponentThreshold', 0.9, @isscalar);
 	p.addParameter('SOUNDlambda', 10^-1.5, @isscalar);
 	p.addParameter('leadFieldPath', '', @(x) ischar(x) || ismatrix(x));  % used by SOUND
 	p.addParameter('doDecayRemovalPerTrial', true, @islogical);
-	p.addParameter('ICAType', 'fastica', @ischar); % picard fastica
+	p.addParameter('ICAType', 'fastica', @ischar);
 	p.addParameter('stimMuscleComponentThreshold', 8, @isscalar);
 	p.addParameter('onOverRejection', 'pause', @ischar);
 	p.addParameter('doPostICAArtifactInterpolation', false, @islogical);
@@ -101,7 +99,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		intermediateEEGs = {};
 		intermediateLabels = {};
 	end
-	orgEEG=EEG;
+	
 	
 	%% make sure no pulses are unexpectedly close together
 	EEG = c_TMSEEG_handleBurstEvents(EEG,...
@@ -112,18 +110,18 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	%% make output directory
 	assert(~isempty(s.outputDir),'Output directory must be specified');
 	
-	% if c_exist(s.outputDir,'dir')
-	% 	% if outputDir already exists, assume it has old results that we should
-	% 	%  move somewhere else rather than deleting / ovewriting
-	% 	listing = dir([s.outputDir '_old*']);
-	% 	existingDirs = arrayfun(@(listItem) fullfile(listItem.folder, listItem.name), listing, 'UniformOutput',false);
-	% 	movePrevOutputTo = c_str_makeUnique(existingDirs, [s.outputDir '_old']);
-	% 	movefile(s.outputDir, movePrevOutputTo);
-	% 	pause(1); % give time for move to process before making dir again below
-	% 	c_saySingle('Moved previous output to %s',...
-		% 	c_path_convert(movePrevOutputTo, 'makeRelativeTo', fileparts(s.outputDir)));
-	% end
-
+	if c_exist(s.outputDir,'dir')
+		% if outputDir already exists, assume it has old results that we should
+		%  move somewhere else rather than deleting / ovewriting
+		listing = dir([s.outputDir '_old*']);
+		existingDirs = arrayfun(@(listItem) fullfile(listItem.folder, listItem.name), listing, 'UniformOutput',false);
+		movePrevOutputTo = c_str_makeUnique(existingDirs, [s.outputDir '_old']);
+		movefile(s.outputDir, movePrevOutputTo);
+		pause(1); % give time for move to process before making dir again below
+		c_saySingle('Moved previous output to %s',...
+			c_path_convert(movePrevOutputTo, 'makeRelativeTo', fileparts(s.outputDir)));
+	end
+	
 	if ~c_exist(s.outputDir,'dir')
 		c_saySingle('Making output directory at %s', s.outputDir);
 		mkdir(s.outputDir);
@@ -138,9 +136,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		EEG = fn();
 	end
 	c_sayDone('Extracted %d epochs', EEG.trials);
-	EEG.report=table;
-    EEG.report.file={EEG.filename};
-    EEG.report.epochs=EEG.trials;
+	
 	%     if s.doDebug
 	%         intermediateEEGs{end+1} = EEG;
 	%         intermediateLabels{end+1} = 'Epoched';
@@ -160,12 +156,9 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	%     end
 	
 	%% downsample
-	EEG.report.orgsamprate=EEG.srate;
 	if EEG.srate > s.downsampleTo
-        
 		c_say('Downsampling to %.1f Hz', s.downsampleTo);
 		EEG = pop_resample(EEG, s.downsampleTo);
-        
 		c_sayDone();
 	
 	%         if s.doDebug
@@ -173,7 +166,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	%             intermediateLabels{end+1} = 'Downsampled';
 	%         end
 	end
-	EEG.report.newsamprate=EEG.srate;
+	
 	%% baseline correct
 	baselineTimespan = s.baselineTimespan;
 	baselineTimespan(2) = min(baselineTimespan(2), s.artifactTimespan(1));
@@ -201,33 +194,25 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		intermediateLabels{end+1} = 'High-pass filtered';
 	end
 	
-	%% Channel rejection
+	%% basic channel rejection
 	doReplaceBadChanImmediately = true;
-	%orgchanlocs=EEG.chanlocs;
+	
 	[EEG, misc] = c_TMSEEG_detectBadChannels(EEG,...
 		'detectionMethod', s.badChannelDetectionMethod,...
-        'IMPChannels', s.IMPChannels,...
-		'artifactTimespan', s.artifactTimespan*3,...
+		'artifactTimespan', s.artifactTimespan*2,...
 		'threshold', s.badChannelThreshold,...
 		'replaceMethod', c_if(doReplaceBadChanImmediately, 'interpolate', 'none'),...
 		'doPlot', true);
 	
 	badChannels = misc.badChannelIndices;
-    
 	
 	title('Early channel rejection');
 	c_FigurePrinter.copyToFile(fullfile(s.outputDir, [s.outputFilePrefix '_QC_EarlyChannelRejection.png']),...
 		'magnification', 2, 'doTransparent', false);
 	close(misc.hf);
-    
 	
 	md.earlyRejectedChannels = badChannels;
-    if ~isempty(misc.badChannelIndices)
-	    [te EEG.report.remchan]=elecName(orgEEG,{misc.badChannelIndices}');
-    elseif isempty(misc.badChannelIndices)
-        EEG.report.remchan={''};
-    end
-
+	
 	if s.doDebug
 		if ~isempty(badChannels)
 			if doReplaceBadChanImmediately
@@ -240,7 +225,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 			intermediateEEGs{end+1} = EEG;
 			intermediateLabels{end+1} = '(After channel rejection)';
 		end
-		tmpEEG = [];  
+		tmpEEG = [];
 	end
 	
 	%% Initial eye-blink removal
@@ -253,24 +238,21 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		c_sayDone();
 		
 		c_say('Running early ICA for eye artifacts');
-		EEG = c_EEG_ICA(EEG, 'method', 'picard');  %fastica picard
+		EEG = c_EEG_ICA(EEG, 'method', 'fastica');
 		c_sayDone();
-		%2nd ICA
+		
 		c_say('Labeling ICs using ICLabel');
 		[EEG, misc] = c_TMSEEG_runICLabel(EEG,...
 			'eyeComponentThreshold', s.initialEyeComponentThreshold,...
 			'muscleComponentThreshold', nan,...
 			'brainComponentThreshold', nan,...
 			'otherComponentThreshold', nan,...
-            'lineNoiseComponentThreshold', 0.85,...
 			'doPlot', true,...
-			'doRejection', false); 
+			'doRejection', false);
 		c_sayDone();
 	
 		md.eyeICA_numComp = length(misc.rejectComponents);
 		md.eyeICA_numRejComp = sum(misc.rejectComponents);
-        %EEG.report.eyeICA_numComp=md.eyeICA_numComp;
-        %EEG.report.eyeICA_numRejComp=md.eyeICA_numRejComp;
 	
 		if true
 			figure(misc.hf);
@@ -308,6 +290,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	else
 		c_saySingle('Skipping early eye component rejection stage.')
 	end
+	
 	
 	if true
 		% save EEG prior to SOUND for some analyses
@@ -350,7 +333,6 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	figure(misc.hf);
 	c_FigurePrinter.copyToFile(fullfile(s.outputDir, [s.outputFilePrefix '_QC_DecayFitAndRemoval.png']), 'magnification', 2, 'doTransparent', false);
 	close(misc.hf);
-    
 	
 	md.didRemoveDecay = misc.didRemoveDecay;
 	
@@ -375,22 +357,21 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	%% notch
 	c_say('Notch filtering');
 	if false
-		EEG = pop_eegfiltnew(EEG, s.notch_freq(1), s.notch_freq(2), 2*EEG.srate, 1);
+		EEG = pop_eegfiltnew(EEG, 58, 62, 2*EEG.srate, 1);
 	else
-		EEG = c_EEG_filter_butterworth(EEG, s.notch_freq, 'type', 'bandstop');
+		EEG = c_EEG_filter_butterworth(EEG, [58 62], 'type', 'bandstop');
 	end
 	c_sayDone();
 	
-	%% ICA 1st 
+	%% ICA
 	c_say('Running ICA');
 	EEG = c_EEG_ICA(EEG, 'method', s.ICAType);
 	c_sayDone();
 	
 	c_say('Labeling ICs using ICLabel');
 	[EEG, misc] = c_TMSEEG_runICLabel(EEG,...
-        'ICA_round',2,...
 		'doPlot', true,...
-		'doRejection', false); %'doPlot', true,...
+		'doRejection', false);
 	c_sayDone();
 	
 	% EEG.reject.gcompreject should have been set to rejectComponents inside c_TMSEEG_runICLabel
@@ -406,7 +387,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	icaact = eeg_getica(EEG);
 	numComps = size(EEG.icaweights, 1);
 	tmsMuscleRatio = nan(numComps, 1);
-	for iC = 1:numComps 
+	for iC = 1:numComps
 		indicesInWin = EEG.times >= tmsMuscleWinTimespan(1)*1e3 & EEG.times < tmsMuscleWinTimespan(2)*1e3;
 		assert(any(indicesInWin));
 		muscleScore = abs(mean(icaact(iC, :, :), 3));
@@ -414,7 +395,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		tmsMuscleRatio(iC) = winScore / mean(muscleScore);
 	end
 	toRejectForMuscle = tmsMuscleRatio > s.stimMuscleComponentThreshold;
-	clear icscores iBrain
+	
 	numNewRejected = sum(~misc.rejectComponents & toRejectForMuscle);
 	if numNewRejected > 0
 		c_saySingle('Marked %d additional components for rejection as TMS-induced muscle artifacts');
@@ -430,9 +411,6 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 		didRejectExtra = false;
 	end
 	
-	EEG.report.ICA_miscComp={string([find(misc.rejectComponents)'])};
-    EEG.report.ICA_miscNumComp={sum(misc.rejectComponents)};
-
 	if sum(~misc.rejectComponents) < 4
 		% very small number of components remain after rejection
 		msg = sprintf('Only %d/%d components remain after rejection', sum(~misc.rejectComponents), length(misc.rejectComponents));
@@ -452,9 +430,6 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	
 	md.ICA_numComp = length(misc.rejectComponents);
 	md.ICA_numRejComp = sum(misc.rejectComponents);
-
-    EEG.report.ICA_numComp=md.ICA_numComp;
-    EEG.report.ICA_numRejComp=md.ICA_numRejComp;
 	
 	if true
 		% save EEG prior to component rejection to allow different component rejection choices later
@@ -517,7 +492,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 	outputPath = fullfile(s.outputDir, [s.outputFilePrefix '.mat']);
 	c_say('Saving results to %s', outputPath);
 	c_save(outputPath, 'EEG', 'md');
-   	c_sayDone();
+	c_sayDone();
 	
 	%% plot
 	if s.doPlotFinalTimtopo
@@ -534,9 +509,7 @@ function EEG = c_TMSEEG_Preprocess_AARATEPPipeline(varargin)
 			'doCrop', true,...
 			'doTransparent', false,...
 			'magnification', 2);
-		if exist('hf') 
-            close(hf);
-        end
+		close(hf);
 		c_sayDone();
 	end
 	
